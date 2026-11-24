@@ -11,6 +11,7 @@ working example for Rubi-Ka is available at <https://items.aobots.org/rk5-items.
 | `<name>.json` | The export described below |
 | `<name>.json.version` | Only the version string of the export, e.g. `18.08.58.03` |
 | `<name>-not-in-game.json` (optional) | JSON array of AOIDs that are not in the game, e.g. `[40082,41325]` |
+| `SHA256SUMS` | An entry per served file in the format of `sha256sum(1)`, updated with every deploy |
 
 - The bot checks the `.version` file once a day and downloads the export
   only if the version changed. Please change the version whenever the data
@@ -18,6 +19,35 @@ working example for Rubi-Ka is available at <https://items.aobots.org/rk5-items.
 - Please serve the files with HTTP compression (`Content-Encoding: gzip`).
   The bot requests it, there is no need for `.gz` files.
 - The export is read as a stream, so formatting and whitespace do not matter.
+- Files may be symlinks to another file of this repository. Since the
+  classic servers share one item database, the files of RK4/RK6 are links
+  to their RK5 counterparts, e.g. `rk4-items.json -> rk5-items.json`.
+  Mirrors must dereference such links when serving and when computing
+  `SHA256SUMS`: serve the content of the target under the link's own name
+  and hash that content.
+
+## Delivery integrity
+
+Every host serving these files must also serve a `SHA256SUMS` file with
+an entry per served file, using the `<sha256>  <filename>` format of
+`sha256sum(1)`. The bot fetches `SHA256SUMS` next to the file it requests,
+hashes the received body and refuses the import on a mismatch:
+
+- the bot reads `SHA256SUMS` from the directory of the file it downloads,
+  so any host following this convention works with the default settings
+  and with custom `item_data_url` settings alike
+- entries are matched by file name, so files may live in flat directories
+  or in subdirectories
+- on a mismatch, the bot keeps its existing data and reports the error
+- for hosts that don't serve `SHA256SUMS`, the bot logs a warning and
+  continues without verification
+
+A working example is served at <https://items.aobots.org/SHA256SUMS>.
+
+The sums protect against truncated or corrupted downloads, deployment
+drift and caching accidents. The trust anchor is this repository itself:
+any change to the data requires a commit here, so keep the branch
+protection on.
 
 ## Structure
 
